@@ -1,0 +1,130 @@
+---
+title: "Análisis de datos: Examen de Diseño Experimental"
+author: "Arenas Tamara, Medina Nuria, Noriega Berenice, Picasso David, Ruiz Braulio, Vázquez Mariana"
+date:  "`r Sys.Date()`"
+output: rmdformats::downcute
+---
+
+# Cargando las librerias a usar
+R tiene un amplio catálogo de librerias que pueden extender las funciones a emplear en el ambiente de trabajo. La forma básica de usarlas es instalando el paquete externo ejecutando una vez el comando ```install.packages()``` y luego llamando el paquete al ambiente de trabajo cada vez que sea necesario empleando al incio de un script la función ```library()```. Sin embargo, el paquete ```pacman``` con su función ```p_load()``` permite en un solo comando instalar las librerías que no se tenga y cargarlas al ambiente de trabajo. 
+
+Esta es la forma clásica:
+```{r Ejemplo_carga_clasica, eval=FALSE, include=TRUE}
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+Vamos a optar por este uso: 
+```{r Librerias, echo=TRUE, message=FALSE, warning=FALSE}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, nortest, ggplot2,car)
+```
+
+# Cargando datos en RStudio
+Se pueden usar funciones que inician con "read" para cargar datos, por ejemplo ```read.csv()``` o la función ```read_xlsx()``` del paquete ```readxl```.  
+
+Con estas funciones R suele cargar el objeto como tipo de dato "data.frame", que es un formato donde es posible combinar en un solo objeto datos de otros tipos (character, integer, numeric, logical, factor). Se puede comprobar la estructura usando la función ```str()```.
+
+```{r Cargando_datos, echo=TRUE, message=FALSE, warning=FALSE}
+BD <- read.csv(file = "../Data/data.csv")
+str(BD)
+```
+
+Eliminamos participantes con datos faltantes: 
+```{r Borrando_nas, echo=TRUE}
+BD <- na.omit(BD)
+```
+
+
+# Obteniendo descriptivos
+
+Para comenzar a explorar los datos de una variable es conveniente calcular las medidas de estadística descriptiva. Se puede hacer esto empleando la función ```group_by()``` para resumir los datos por grupo usando también ```summarise()```
+
+Por ejemplo, para el conjunto de datos cargado observemos los descriptivos para la variable de edad:
+
+
+```{r Descriptivos, echo=TRUE, message=FALSE, warning=FALSE}
+BD %>% group_by(Sexo_Aplicador) %>% summarise(
+  media= mean(Veces_Risa),
+  mediana= median(Veces_Risa),
+  ds= sd(Veces_Risa),
+  varianza= var(Veces_Risa),
+  minimo= min(Veces_Risa),
+  maximo= max(Veces_Risa),
+  muestra= n(),
+  error_estandar=ds/sqrt(muestra),
+  i_confianza_low= media-2*error_estandar,
+  i_confianza_up= media+2*error_estandar
+)
+```
+
+Generamos una variable que identifique a cada participante (ID)
+
+```{r}
+BD<- BD %>% mutate(ID_Card=1:16)
+```
+
+Para futuros ejercicios guardamos la base generada:
+```{r Guardando_base, echo=TRUE, message=FALSE, warning=FALSE}
+write.csv(BD, file = "../Output/BD.csv")
+```
+
+
+# Normalidad y homocedasticidad de los datos
+
+Empleamos el test de Shapiro-Wilk ya que el tamaño de la muestra de cada grupo es menor a 50.  
+
+```{r prueba_normalidad, echo=TRUE, message=FALSE, warning=FALSE}
+# Muestra menor a 50 participantes
+shapiro.test(BD$Veces_Risa[BD$Sexo_Aplicador=="M"]) 
+shapiro.test(BD$Veces_Risa[BD$Sexo_Aplicador=="H"]) 
+```
+Tanto para el grupo A (expositor mujer) como el grupo B (expositor hombre), se obtiene un p-value mayor de 0.05, por lo cual se concluye que los datos de edad cumplen el supuesto de normalidad. Se puede comprobar visualmente que hay una distribución similar a la de la curva normal:
+
+```{r}
+ggplot(data= BD, aes(x=Veces_Risa, color=Sexo_Aplicador)) +
+  geom_density() +
+  scale_color_manual(values = c("#42D9C8","#D63230"))+
+       theme_minimal()+
+      labs(title = 'Distribución por Sexo del Aplicador',
+       color = 'Sexo del Aplicador',
+       x = 'Veces que rió', 
+       y='Densidad')
+
+```
+
+Dado que los datos cumplen el supuesto de normalidad, se pone a prueba el supuesto de homocedasticidad con la prueba de Bartlett 
+
+```{r Bartlett, echo=TRUE, message=FALSE, warning=FALSE}
+bartlett.test(BD$Veces_Risa ~ BD$Sexo_Aplicador)
+```
+Como el p-value es un valor mayor de 0.05, aceptamos la hipótesis nula (H0). Esto nos indica que nuestras dos muestras presentan varianzas iguales. Es decir: no se encuentran diferencias significativas entre las varianzas de los dos grupos.    
+
+Se observa este hallazgo visualmente:
+```{r Boxplot_dep, echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = BD, aes(x = Sexo_Aplicador, y = Veces_Risa, colour = Sexo_Aplicador)) +
+  geom_boxplot() +
+  labs(
+    title = 'Risa en cuanto al Sexo del Aplicador',
+       x = 'Sexo del Aplicador',
+       y = 'Veces Risa',
+       caption="Bartlett, p=.43"
+    ) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+```{r Boxplot_dep, echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = BD, aes(x = Sexo_Aplicador, y = Veces_Risa)) + 
+  geom_jitter(aes(color = Sexo_Aplicador), size = 1, alpha = 0.5) +
+  geom_boxplot(aes(color = Sexo_Aplicador), alpha = 0.5) + 
+  labs(
+    title = 'Risa en cuanto al Sexo del Aplicador',
+       x = 'Sexo del Aplicador',
+       y = 'Veces Risa',
+       caption="Bartlett, p=.43"
+    ) +
+  theme_bw() +
+  theme(legend.position = "none") + 
+  theme_minimal()
+```
