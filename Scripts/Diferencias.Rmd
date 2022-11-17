@@ -1,0 +1,41 @@
+---
+title: "Análisis de diferencias: Examen de Diseño Experimental"
+author: "Arenas Tamara, Medina Nuria, Noriega Berenice, Picasso David, Ruiz Braulio, Vázquez Mariana"
+date:  "`r Sys.Date()`"
+output: rmdformats::downcute
+---
+
+
+```{r Librerias_datos, message=FALSE, warning=FALSE, include=FALSE}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, ggpubr, coin, effsize,PMCMRplus)
+BD <- read.csv(file = "../Output/BD.csv")
+```
+
+# T de student 
+
+```{r comparacion_dep_t_test, echo=TRUE, message=FALSE, warning=FALSE}
+Risa_SexoAM <- BD$Veces_Risa[BD$Sexo_Aplicador =="M"]
+Risa_SexoAH   <- BD$Veces_Risa[BD$Sexo_Aplicador =="H"]
+t.test(x=Risa_SexoAM, y=Risa_SexoAH, alternative = "two.sided", mu=0, var.equal = T, conf.level = 0.95)
+```
+Dado que el p-value (0.1718) es mayor que alpha (0.05), no se dispone de evidencia suficiente para considerar que existe una diferencia entre el grupo A (aplicador mujer) y grupo B (aplicador hombre).
+
+
+Nuestro hallazgo se evidencia visualmente de la siguiente manera
+
+```{r Boxplot_dep, echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = BD, aes(x = Sexo_Aplicador, y = Veces_Risa, colour = Sexo_Aplicador)) +
+  geom_boxplot() +
+  labs(title = 'T-Student',
+       x = 'Sexo del Aplicador',
+       y = 'Risa (# de eventos)',
+       caption = 'Respuesta de risa') +
+  stat_compare_means(method = "t.test")+ # Agrega p-values comparando grupos
+  theme_bw() +
+  theme(legend.position = "none")
+```
+```{Compare_Means}
+compare_means(Veces_Risa ~ Sexo_Aplicador,  data = BD)
+my_comparisons <- list( c("0.5", "1"), c("1", "2"), c("0.5", "2") )
+```
