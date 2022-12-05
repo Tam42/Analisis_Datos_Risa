@@ -1,0 +1,193 @@
+---
+title: 'Análisis de datos: Proyecto de Diseño Experimental'
+author: "Arenas Tamara, Medina Nuria, Noriega Berenice, Picasso David, Ruiz Braulio, Vázquez Mariana"
+date:  "`r Sys.Date()`"
+output: pdf_document
+---
+
+# Cargando las librerias a usar
+
+Cargando tidyverse:
+
+```{r Ejemplo_carga_clasica, eval=FALSE, include=TRUE}
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+Cargando pacman:
+
+```{r Librerias, echo=TRUE, message=FALSE, warning=FALSE}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, nortest, ggplot2,car)
+```
+
+# Cargando datos en RStudio, la base de datos se llama data
+
+```{r Cargando_datos, echo=TRUE, message=FALSE, warning=FALSE}
+BD <- read.csv(file = "../Data/data.csv")
+str(BD)
+```
+
+Eliminamos participantes con datos faltantes (NA):
+
+```{r Borrando_nas, echo=TRUE}
+BD <- na.omit(BD)
+```
+
+###DATOS ANALIZADOS EN FUNCIÓN DEL SEXO DEL APLICADOR
+
+# Obteniendo descriptivos
+
+Esto nos permitirá calcular las medidas de estadística descriptiva.
+
+```{r Descriptivos, echo=TRUE, message=FALSE, warning=FALSE}
+BD %>% group_by(Sexo_Aplicador) %>% summarise(
+  media= mean(Veces_Risa),
+  mediana= median(Veces_Risa),
+  ds= sd(Veces_Risa),
+  varianza= var(Veces_Risa),
+  minimo= min(Veces_Risa),
+  maximo= max(Veces_Risa),
+  muestra= n(),
+  error_estandar=ds/sqrt(muestra),
+  i_confianza_low= media-2*error_estandar,
+  i_confianza_up= media+2*error_estandar
+)
+```
+
+Se guarda la base generada:
+
+```{r Guardando_base, echo=TRUE, message=FALSE, warning=FALSE}
+write.csv(BD, file = "../Output/BD.csv")
+```
+
+# Normalidad y homocedasticidad de los datos
+
+Empleamos el test de Shapiro-Wilk ya que el tamaño de la muestra de cada grupo es menor a 50.
+
+```{r prueba_normalidad, echo=TRUE, message=FALSE, warning=FALSE}
+# Muestra menor a 50 participantes
+shapiro.test(BD$Veces_Risa[BD$Sexo_Aplicador=="M"]) 
+shapiro.test(BD$Veces_Risa[BD$Sexo_Aplicador=="H"]) 
+```
+
+El grupo A (expositor mujer) tiene un p-value menor de 0.05, mientras que el grupo B (expositor hombre) tiene un p-value mayor de 0.05, por lo cual se concluye que los datos del número de eventos de risa no cumplen el supuesto de normalidad.
+
+#Se cambian las abreviaciones por el nombre completo
+
+```{r Sexo_Apli_Factor}
+sexo_apl_nom <- factor(BD$Sexo_Aplicador,levels=c("H","M"),labels=c("Hombre","Mujer"))
+```
+
+Se puede comprobar visualmente este hecho:
+
+```{r Geom_Shapiro}
+ggplot(data= BD, aes(x=Veces_Risa, color=sexo_apl_nom)) +
+  geom_density() +
+  scale_color_manual(values = c("#AD84BC","#E97979"))+
+       theme_classic()+
+      labs(color = 'Sexo del Aplicador',
+       x = 'Risa (# de eventos)', 
+       y='Densidad',
+       caption="Shapiro-Wilk, p=0.178")
+
+```
+
+Dado que los datos no cumplen el supuesto de normalidad, se pone a prueba el supuesto de homocedasticidad con la prueba de Levene
+
+```{r Levene, echo=TRUE, message=FALSE, warning=FALSE}
+car::leveneTest(y=BD$Veces_Risa, group = as.factor(BD$Sexo_Aplicador), center = median)
+```
+
+Como el p-value es un valor menor de 0.05, podemos rechazar la hipótesis nula (no rechazamos la hipotesis alternativa).
+
+Se observa este hallazgo visualmente:
+
+```{r Boxplot_levene, echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = BD, aes(x = sexo_apl_nom, y = Veces_Risa)) + 
+  geom_jitter(aes(color = sexo_apl_nom), size = 1, alpha = 0.5) +
+  geom_boxplot(aes(color = sexo_apl_nom), alpha = 0.5) + 
+  scale_color_manual(values = c("#AD84BC","#E97979"))+
+  theme_classic()+
+  labs(x = "Sexo del Aplicador",
+       y = 'Risa (# de eventos)',
+       caption="Levene, p=0"
+    ) +
+  theme(legend.position = "none")
+```
+
+###DATOS ANALIZADOS EN FUNCION DEL SEXO DEL PARTICIPANTE
+
+# Obteniendo descriptivos
+
+Se obtiene el análisas de los datos en función del sexo del participante.
+
+```{r Descriptivos_Participante, echo=TRUE, message=FALSE, warning=FALSE}
+BD %>% group_by(Sexo) %>% summarise(
+  media= mean(Veces_Risa),
+  mediana= median(Veces_Risa),
+  ds= sd(Veces_Risa),
+  varianza= var(Veces_Risa),
+  minimo= min(Veces_Risa),
+  maximo= max(Veces_Risa),
+  muestra= n(),
+  error_estandar=ds/sqrt(muestra),
+  i_confianza_low= media-2*error_estandar,
+  i_confianza_up= media+2*error_estandar
+)
+```
+
+# Normalidad y homocedasticidad de los datos
+
+Empleamos el test de Shapiro-Wilk ya que el tamaño de la muestra de cada grupo es menor a 50.
+
+```{r Prueba_Normalidad_Participante, echo=TRUE, message=FALSE, warning=FALSE}
+# Muestra menor a 50 participantes
+shapiro.test(BD$Veces_Risa[BD$Sexo=="M"]) 
+shapiro.test(BD$Veces_Risa[BD$Sexo=="H"])
+```
+
+Tanto el grupo de participantes mujeres como el grupo de participantes hombres obtienen un p-value mayor de 0.05, por lo cual se concluye que los datos del número de eventos de risa cumplen el supuesto de normalidad.
+
+#Se cambian las abreviaciones por el nombre completo
+
+```{r Sexo_Par_Factor}
+sexo_par_nom <- factor(BD$Sexo,levels=c("H","M"),labels=c("Hombre","Mujer"))
+```
+
+Se puede comprobar visualmente este hecho:
+
+```{r Geom_Shapiro_Par}
+ggplot(data= BD, aes(x=Veces_Risa, color=sexo_par_nom)) +
+  geom_density() +
+  scale_color_manual(values = c("#7D8BC3","#75CC86"))+
+       theme_classic()+
+      labs(color = 'Sexo del Participante',
+       x = 'Risa (# de eventos)', 
+       y='Densidad',
+       caption="Shapiro-Wilk, p=0.135")
+
+```
+
+Dado que los datos cumplen el supuesto de normalidad, se pone a prueba el supuesto de homocedasticidad con la prueba de Bartlett para corroborar.
+
+```{r Bartlett, echo=TRUE, message=FALSE, warning=FALSE}
+bartlett.test(BD$Veces_Risa ~ BD$Sexo)
+```
+
+Como el p-value es un valor mayor de 0.05, aceptamos la hipótesis nula (H0). Esto nos indica que nuestras dos muestras presentan varianzas iguales. Es decir: no se encuentran diferencias significativas entre las varianzas de los dos grupos.
+
+Podemos observar esta aseveración en el siguiente gráfico:
+
+```{r Boxplot_Barlett, echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = BD, aes(x = sexo_par_nom, y = Veces_Risa)) + 
+  geom_boxplot(aes(color = sexo_par_nom), alpha = 0.5) + 
+  geom_jitter(aes(color = sexo_par_nom), size = 1, alpha = 0.5) +
+  scale_color_manual(values = c("#7D8BC3","#75CC86"))+
+  theme_classic()+
+  labs(x = 'Sexo del Participante',
+       y = 'Risa (# de eventos)',
+       caption="Bartlett, p=0.2159"
+    ) +
+  theme(legend.position = "none")
+```
